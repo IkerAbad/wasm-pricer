@@ -10,7 +10,13 @@
     "build": "wasm-pack build --target web --release --out-dir web/pkg",
     "build:node": "wasm-pack build --target nodejs --release --out-dir pkg-node",
     "test": "node --test tests/node/reference.test.mjs",
-    "serve": "python -m http.server 8000 -d web"
+    "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test --update-snapshots",
+    "serve": "python -m http.server 8000 -d web",
+    "serve:e2e": "node tests/e2e/serve.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
   }
 }
 
