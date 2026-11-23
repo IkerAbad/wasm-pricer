@@ -215,7 +215,7 @@ viewport) the page reports roughly:
 | Measurement | Observed |
 |---|---:|
 | Load, local warm cache | 50–200 ms |
-| Load, published site, cache disabled | 440–600 ms |
+| Load, published site, cache disabled | 400–600 ms |
 | Recalculation, median | 7–12 ms |
 | Canvas draw | 6–11 ms |
 
@@ -275,6 +275,7 @@ repository's Pages source must be set to **GitHub Actions**.
 ## License
 
 MIT. Copyright (c) 2026 Iker Abad.
+
 
 
 
