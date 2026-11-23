@@ -22,6 +22,12 @@
       "charm": -0.06566706071046413
     }
   },
+  "dividend_case": {
+    "dividend_yield": 0.03,
+    "call": 8.652528553942709,
+    "put": 6.7309176491633025,
+    "delta": 0.5621399977897841
+  },
   "monte_carlo": {
     "steps": 64,
     "reference_paths": 2000000,

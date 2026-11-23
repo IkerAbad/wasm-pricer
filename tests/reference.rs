@@ -115,10 +115,26 @@ fn greeks_agree_with_finite_differences() {
 
 #[test]
 fn geometric_asian_closed_form_matches_options_pricer() {
-    let call =
-        monte_carlo::geometric_asian_price(OptionKind::Call, SPOT, STRIKE, RATE, VOL, EXPIRY, 64);
-    let put =
-        monte_carlo::geometric_asian_price(OptionKind::Put, SPOT, STRIKE, RATE, VOL, EXPIRY, 64);
+    let call = monte_carlo::geometric_asian_price(
+        OptionKind::Call,
+        SPOT,
+        STRIKE,
+        RATE,
+        VOL,
+        EXPIRY,
+        0.0,
+        64,
+    );
+    let put = monte_carlo::geometric_asian_price(
+        OptionKind::Put,
+        SPOT,
+        STRIKE,
+        RATE,
+        VOL,
+        EXPIRY,
+        0.0,
+        64,
+    );
 
     assert_close(call, 5.620_434_431_825_337, 1e-10, "geometric Asian call");
     assert_close(put, 3.498_889_929_431_685_5, 1e-10, "geometric Asian put");
@@ -127,7 +143,7 @@ fn geometric_asian_closed_form_matches_options_pricer() {
 #[test]
 fn asian_control_variate_matches_converged_reference() {
     let result =
-        monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 64, 3_000, 20_261_123);
+        monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0, 64, 3_000, 20_261_123);
 
     // Reference: 2,000,000 paths, seed 42, options-pricer 0.7.0.
     assert_close(
@@ -160,8 +176,8 @@ fn asian_control_variate_matches_converged_reference() {
 
 #[test]
 fn asian_estimate_is_deterministic() {
-    let first = monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 32, 2_000, 7);
-    let second = monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 32, 2_000, 7);
+    let first = monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0, 32, 2_000, 7);
+    let second = monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0, 32, 2_000, 7);
     assert_eq!(first.call_price, second.call_price);
     assert_eq!(first.put_price, second.put_price);
     assert_eq!(first.european_call, second.european_call);
@@ -170,7 +186,7 @@ fn asian_estimate_is_deterministic() {
 #[test]
 fn european_monte_carlo_agrees_with_the_closed_form() {
     let result =
-        monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 64, 3_000, 20_261_123);
+        monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0, 64, 3_000, 20_261_123);
     let closed = black_scholes::price(OptionKind::Call, SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0);
     let combined = (result.european_call_standard_error.powi(2)
         + 0.010_413_624_062_323_492_f64.powi(2))
@@ -186,7 +202,7 @@ fn european_monte_carlo_agrees_with_the_closed_form() {
 
 #[test]
 fn surface_is_pinned_to_the_slider_volatility() {
-    let surface = svi::build_surface(SPOT, STRIKE, RATE, VOL, EXPIRY);
+    let surface = svi::build_surface(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0);
     assert_eq!(surface.values.len(), svi::STRIKES * svi::MATURITIES);
 
     let params = svi::atm_slice(EXPIRY, VOL);
@@ -199,7 +215,7 @@ fn surface_is_pinned_to_the_slider_volatility() {
 fn surface_stays_positive_across_the_slider_range() {
     for spot in [50.0, 100.0, 150.0] {
         for vol in [0.05, 0.2, 0.8] {
-            let surface = svi::build_surface(spot, 100.0, 0.1, vol, 2.0);
+            let surface = svi::build_surface(spot, 100.0, 0.1, vol, 2.0, 0.0);
             assert!(
                 surface
                     .values
@@ -209,4 +225,54 @@ fn surface_stays_positive_across_the_slider_range() {
             );
         }
     }
+}
+
+#[test]
+fn dividend_yield_moves_the_asian_estimate() {
+    let base =
+        monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0, 64, 3_000, 20_261_123);
+    let with_dividend =
+        monte_carlo::asian_estimate(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.03, 64, 3_000, 20_261_123);
+
+    assert!(with_dividend.call_price < base.call_price);
+    assert!(with_dividend.put_price > base.put_price);
+    assert!(with_dividend.geometric_call < base.geometric_call);
+    assert!(with_dividend.geometric_put > base.geometric_put);
+}
+
+#[test]
+fn price_curve_matches_the_scalar_price() {
+    let curve = black_scholes::price_curve(
+        OptionKind::Call,
+        50.0,
+        150.0,
+        101,
+        STRIKE,
+        RATE,
+        VOL,
+        EXPIRY,
+        0.0,
+    );
+
+    assert_eq!(curve.len(), 101);
+    assert!(curve.windows(2).all(|window| window[1] >= window[0]));
+
+    for (index, value) in curve.iter().enumerate() {
+        let spot = 50.0 + index as f64;
+        let expected = black_scholes::price(OptionKind::Call, spot, STRIKE, RATE, VOL, EXPIRY, 0.0);
+        assert_close(*value, expected, 1e-12, "curve point");
+    }
+}
+
+#[test]
+fn surface_accepts_a_dividend_yield() {
+    let without = svi::build_surface(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.0);
+    let with = svi::build_surface(SPOT, STRIKE, RATE, VOL, EXPIRY, 0.03);
+
+    assert_eq!(with.values.len(), svi::STRIKES * svi::MATURITIES);
+    assert!(with
+        .values
+        .iter()
+        .all(|value| value.is_finite() && *value > 0.0));
+    assert!(without.marker_vol != with.marker_vol);
 }

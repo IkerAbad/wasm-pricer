@@ -35,6 +35,7 @@ pub struct AsianEstimate {
 
 /// Exact price of an option on the discrete geometric average of
 /// S(t_1) ... S(t_n), with t_i = i * expiry / steps.
+#[allow(clippy::too_many_arguments)]
 pub fn geometric_asian_price(
     kind: OptionKind,
     spot: f64,
@@ -42,10 +43,12 @@ pub fn geometric_asian_price(
     rate: f64,
     vol: f64,
     expiry: f64,
+    dividend_yield: f64,
     steps: usize,
 ) -> f64 {
     let n = steps as f64;
-    let mean_log = log(spot) + (rate - 0.5 * vol * vol) * expiry * (n + 1.0) / (2.0 * n);
+    let mean_log =
+        log(spot) + (rate - dividend_yield - 0.5 * vol * vol) * expiry * (n + 1.0) / (2.0 * n);
     let variance = vol * vol * expiry * (n + 1.0) * (2.0 * n + 1.0) / (6.0 * n * n);
     let std_dev = sqrt(variance);
     let expected_geometric = exp(mean_log + 0.5 * variance);
@@ -110,12 +113,13 @@ pub fn asian_estimate(
     rate: f64,
     vol: f64,
     expiry: f64,
+    dividend_yield: f64,
     steps: usize,
     paths: usize,
     seed: u32,
 ) -> AsianEstimate {
     let dt = expiry / steps as f64;
-    let drift = (rate - 0.5 * vol * vol) * dt;
+    let drift = (rate - dividend_yield - 0.5 * vol * vol) * dt;
     let diffusion = vol * sqrt(dt);
     let discount = exp(-rate * expiry);
     let log_spot = log(spot);
@@ -153,10 +157,26 @@ pub fn asian_estimate(
         european_put.push(discount * (strike - price).max(0.0));
     }
 
-    let geometric_call =
-        geometric_asian_price(OptionKind::Call, spot, strike, rate, vol, expiry, steps);
-    let geometric_put =
-        geometric_asian_price(OptionKind::Put, spot, strike, rate, vol, expiry, steps);
+    let geometric_call = geometric_asian_price(
+        OptionKind::Call,
+        spot,
+        strike,
+        rate,
+        vol,
+        expiry,
+        dividend_yield,
+        steps,
+    );
+    let geometric_put = geometric_asian_price(
+        OptionKind::Put,
+        spot,
+        strike,
+        rate,
+        vol,
+        expiry,
+        dividend_yield,
+        steps,
+    );
 
     let (call_raw_price, call_raw_standard_error, call_price, call_standard_error) =
         summarise(&call_raw, &call_geo, geometric_call);

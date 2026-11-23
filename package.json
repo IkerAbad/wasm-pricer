@@ -1,6 +1,6 @@
 {
   "name": "wasm-pricer-site",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Static page and reference tests for the wasm-pricer WebAssembly demo.",
@@ -13,3 +13,4 @@
     "serve": "python -m http.server 8000 -d web"
   }
 }
+

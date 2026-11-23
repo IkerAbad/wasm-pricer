@@ -84,14 +84,21 @@ pub struct SurfaceData {
     pub marker_vol: f64,
 }
 
-pub fn build_surface(spot: f64, strike: f64, rate: f64, vol: f64, expiry: f64) -> SurfaceData {
+pub fn build_surface(
+    spot: f64,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    expiry: f64,
+    dividend_yield: f64,
+) -> SurfaceData {
     let strikes = strike_grid();
     let maturities = maturity_grid();
     let mut values = Vec::with_capacity(STRIKES * MATURITIES);
 
     for &maturity in &maturities {
         let params = atm_slice(maturity, vol);
-        let forward = spot * exp(rate * maturity);
+        let forward = spot * exp((rate - dividend_yield) * maturity);
         for &strike in &strikes {
             let k = log(strike / forward);
             values.push(implied_vol(k, maturity, &params));
@@ -99,7 +106,7 @@ pub fn build_surface(spot: f64, strike: f64, rate: f64, vol: f64, expiry: f64) -
     }
 
     let marker_params = atm_slice(expiry, vol);
-    let marker_forward = spot * exp(rate * expiry);
+    let marker_forward = spot * exp((rate - dividend_yield) * expiry);
     let marker_vol = implied_vol(log(strike / marker_forward), expiry, &marker_params);
 
     SurfaceData {
@@ -143,7 +150,7 @@ mod tests {
     fn grid_has_the_advertised_shape() {
         assert_eq!(strike_grid().len(), STRIKES);
         assert_eq!(maturity_grid().len(), MATURITIES);
-        let surface = build_surface(100.0, 100.0, 0.05, 0.2, 1.0);
+        let surface = build_surface(100.0, 100.0, 0.05, 0.2, 1.0, 0.0);
         assert_eq!(surface.values.len(), STRIKES * MATURITIES);
         assert!(surface
             .values

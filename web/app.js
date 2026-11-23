@@ -1,6 +1,7 @@
 import init, {
   asian_monte_carlo,
   build_vol_surface,
+  price_curve,
   quote,
   version,
 } from "./pkg/wasm_pricer.js";
@@ -39,6 +40,12 @@ const controls = {
     read: (value) => value / 100,
     format: (value) => `${value.toFixed(1)}%`,
   },
+  dividend: {
+    input: byId("dividend"),
+    output: byId("dividend-value"),
+    read: (value) => value / 100,
+    format: (value) => `${value.toFixed(1)}%`,
+  },
   expiry: {
     input: byId("expiry"),
     output: byId("expiry-value"),
@@ -56,7 +63,22 @@ const state = {
   strike: 100,
   vol: 0.2,
   rate: 0.05,
+  dividend: 0,
   expiry: 1,
+};
+
+const CURVE_POINTS = 121;
+const CURVE_MIN_SPOT = 50;
+const CURVE_MAX_SPOT = 150;
+
+const compare = {
+  open: false,
+  kind: "call",
+  a: null,
+  b: null,
+  curves: null,
+  liveA: null,
+  liveB: null,
 };
 
 const view = {
@@ -165,7 +187,7 @@ function bindControls() {
   }
 
   byId("reset-button").addEventListener("click", () => {
-    const defaults = { spot: 100, strike: 100, vol: 20, rate: 5, expiry: 12 };
+    const defaults = { spot: 100, strike: 100, vol: 20, rate: 5, dividend: 0, expiry: 12 };
     for (const [key, value] of Object.entries(defaults)) {
       controls[key].input.value = String(value);
     }
@@ -499,7 +521,156 @@ class SurfaceRenderer {
   }
 }
 
+class CompareChart {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.width = 0;
+    this.height = 0;
+    this.dpr = 1;
+    this.data = null;
+    this.resize = this.resize.bind(this);
+    new ResizeObserver(this.resize).observe(canvas);
+    this.resize();
+  }
+
+  resize() {
+    const rect = this.canvas.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    this.width = width;
+    this.height = height;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(width * dpr);
+    this.canvas.height = Math.round(height * dpr);
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.draw();
+  }
+
+  setData(data) {
+    this.data = data;
+    const label = data.kind === "put" ? "Put" : "Call";
+    this.canvas.setAttribute(
+      "aria-label",
+      `${label} value curves for setups A and B across spot, from ${data.spots[0]} to ${data.spots.at(-1)}.`,
+    );
+    this.draw();
+  }
+
+  draw() {
+    if (!this.data || this.width < 80 || this.height < 80) return;
+
+    const { ctx, width, height } = this;
+    const { spots, a, b, liveSpot, liveA, liveB } = this.data;
+    const pad = { left: 52, right: 16, top: 16, bottom: 34 };
+    const plotWidth = width - pad.left - pad.right;
+    const plotHeight = height - pad.top - pad.bottom;
+    const maxValue = Math.max(0, ...a, ...b);
+    const yMax = Math.max(0.01, maxValue * 1.08);
+    const xMin = spots[0];
+    const xMax = spots.at(-1);
+
+    const x = (spot) => pad.left + ((spot - xMin) / (xMax - xMin)) * plotWidth;
+    const y = (value) => pad.top + plotHeight - (value / yMax) * plotHeight;
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.font = "10px Consolas, monospace";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = 1;
+
+    for (let index = 0; index <= 4; index += 1) {
+      const value = (yMax * index) / 4;
+      const yPos = y(value);
+      ctx.strokeStyle = "rgba(125, 180, 255, 0.1)";
+      ctx.beginPath();
+      ctx.moveTo(pad.left, yPos);
+      ctx.lineTo(width - pad.right, yPos);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(170, 187, 202, 0.72)";
+      ctx.textAlign = "right";
+      ctx.fillText(value.toFixed(2), pad.left - 8, yPos);
+    }
+
+    const xTicks = width > 480 ? [50, 75, 100, 125, 150] : [50, 100, 150];
+    for (const spot of xTicks) {
+      const xPos = x(spot);
+      ctx.strokeStyle = "rgba(125, 180, 255, 0.08)";
+      ctx.beginPath();
+      ctx.moveTo(xPos, pad.top);
+      ctx.lineTo(xPos, height - pad.bottom);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(170, 187, 202, 0.72)";
+      ctx.textAlign = "center";
+      ctx.fillText(String(spot), xPos, height - pad.bottom + 14);
+    }
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.055)";
+    ctx.beginPath();
+    ctx.moveTo(x(spots[0]), y(a[0]));
+    for (let index = 1; index < spots.length; index += 1) {
+      ctx.lineTo(x(spots[index]), y(a[index]));
+    }
+    for (let index = spots.length - 1; index >= 0; index -= 1) {
+      ctx.lineTo(x(spots[index]), y(b[index]));
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    const drawLine = (values, color) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      for (let index = 0; index < spots.length; index += 1) {
+        const xPos = x(spots[index]);
+        const yPos = y(values[index]);
+        if (index === 0) ctx.moveTo(xPos, yPos);
+        else ctx.lineTo(xPos, yPos);
+      }
+      ctx.stroke();
+    };
+    drawLine(a, "#5eead4");
+    drawLine(b, "#ffbd6b");
+
+    if (liveSpot >= xMin && liveSpot <= xMax) {
+      const xPos = x(liveSpot);
+      ctx.save();
+      ctx.strokeStyle = "rgba(238, 244, 250, 0.32)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.moveTo(xPos, pad.top);
+      ctx.lineTo(xPos, height - pad.bottom);
+      ctx.stroke();
+      ctx.restore();
+
+      for (const [value, color] of [
+        [liveA, "#5eead4"],
+        [liveB, "#ffbd6b"],
+      ]) {
+        if (!Number.isFinite(value)) continue;
+        const yPos = y(value);
+        ctx.beginPath();
+        ctx.arc(xPos, yPos, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "#f3f7fa";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(xPos, yPos, 6.5, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
+    ctx.fillStyle = "rgba(126, 143, 161, 0.85)";
+    ctx.textAlign = "center";
+    ctx.fillText("spot", pad.left + plotWidth / 2, height - 8);
+  }
+}
 const renderer = new SurfaceRenderer(byId("surface"));
+const compareChart = new CompareChart(byId("compare-chart"));
 
 function readQuote(result) {
   return {
@@ -534,58 +705,102 @@ function readAsian(result) {
   };
 }
 
-function compute(measure = true) {
-  const started = performance.now();
+function collectPricing(current = state) {
+  const { spot, strike, rate, vol, dividend, expiry } = current;
   let call = null;
   let put = null;
   let asian = null;
   let surfaceObject = null;
 
   try {
-    const { spot, strike, rate, vol, expiry } = state;
-    call = quote("call", spot, strike, rate, vol, expiry, 0);
-    put = quote("put", spot, strike, rate, vol, expiry, 0);
-    asian = asian_monte_carlo(spot, strike, rate, vol, expiry, STEPS, PATHS, SEED);
-    surfaceObject = build_vol_surface(spot, strike, rate, vol, expiry);
+    call = quote("call", spot, strike, rate, vol, expiry, dividend);
+    put = quote("put", spot, strike, rate, vol, expiry, dividend);
+    asian = asian_monte_carlo(
+      spot,
+      strike,
+      rate,
+      vol,
+      expiry,
+      dividend,
+      STEPS,
+      PATHS,
+      SEED,
+    );
+    surfaceObject = build_vol_surface(spot, strike, rate, vol, expiry, dividend);
 
-    const surface = {
-      width: surfaceObject.width,
-      height: surfaceObject.height,
-      strikes: surfaceObject.strikes,
-      maturities: surfaceObject.maturities,
-      values: surfaceObject.values,
-      markerVol: surfaceObject.marker_vol,
-    };
-
-    lastResult = {
+    return {
       call: readQuote(call),
       put: readQuote(put),
       asian: readAsian(asian),
-      surface,
+      surface: {
+        width: surfaceObject.width,
+        height: surfaceObject.height,
+        strikes: surfaceObject.strikes,
+        maturities: surfaceObject.maturities,
+        values: surfaceObject.values,
+        markerVol: surfaceObject.marker_vol,
+      },
     };
-
-    updateReadouts(lastResult);
-    window.__wasmPricer.lastResult = {
-      call: lastResult.call,
-      put: lastResult.put,
-      asian: lastResult.asian,
-      markerVol: surface.markerVol,
-    };
-    drawDirty = true;
-    renderer.dirty = true;
-  } catch (error) {
-    showError(`Pricing failed: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     if (surfaceObject) surfaceObject.free();
     if (asian) asian.free();
     if (put) put.free();
     if (call) call.free();
   }
+}
+
+function compute(measure = true) {
+  const started = performance.now();
+
+  try {
+    lastResult = collectPricing();
+    updateReadouts(lastResult);
+    window.__wasmPricer.lastResult = {
+      call: lastResult.call,
+      put: lastResult.put,
+      asian: lastResult.asian,
+      markerVol: lastResult.surface.markerVol,
+    };
+    if (compare.open) updateCompareSummary();
+    drawDirty = true;
+    renderer.dirty = true;
+  } catch (error) {
+    showError(`Pricing failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   const elapsed = performance.now() - started;
   if (measure) pushMetric("calc", elapsed);
 }
 
+function benchmark(repetitions = 30) {
+  if (!wasmReady) throw new Error("the pricing core is not ready yet");
+  const count = Math.max(1, Math.min(200, Math.floor(repetitions)));
+
+  for (let index = 0; index < 3; index += 1) collectPricing();
+
+  const times = [];
+  for (let index = 0; index < count; index += 1) {
+    const started = performance.now();
+    collectPricing();
+    times.push(performance.now() - started);
+  }
+  times.sort((left, right) => left - right);
+  const p95Index = Math.min(times.length - 1, Math.floor((times.length - 1) * 0.95));
+
+  return {
+    repetitions: count,
+    medianMs: times[Math.floor((times.length - 1) / 2)],
+    p95Ms: times[p95Index],
+    minMs: times[0],
+    maxMs: times.at(-1),
+    loadMs: window.__wasmPricer.loadMs,
+    paths: PATHS,
+    steps: STEPS,
+    version: window.__wasmPricer.version,
+  };
+}
+
+window.__wasmPricer.benchmark = benchmark;
 function updateReadouts(result) {
   const { call, put, asian, surface } = result;
 
@@ -638,6 +853,213 @@ function updateReadouts(result) {
   byId("legend-max").textContent = `${(max * 100).toFixed(1)}%`;
 }
 
+function snapshotConfig(overrides = {}) {
+  return {
+    strike: state.strike,
+    vol: state.vol,
+    rate: state.rate,
+    dividend: state.dividend,
+    expiry: state.expiry,
+    ...overrides,
+  };
+}
+
+function initializeCompare() {
+  if (!compare.a) compare.a = snapshotConfig();
+  if (!compare.b) {
+    compare.b = snapshotConfig({ vol: Math.min(0.8, state.vol + 0.1) });
+  }
+  renderCompareConfigs();
+}
+
+function renderConfigList(target, config) {
+  const rows = [
+    ["Strike", config.strike.toFixed(1)],
+    ["Volatility", `${(config.vol * 100).toFixed(1)}%`],
+    ["Rate", `${(config.rate * 100).toFixed(1)}%`],
+    ["Dividend", `${(config.dividend * 100).toFixed(1)}%`],
+    ["Expiry", `${config.expiry.toFixed(2)} y`],
+  ];
+
+  target.replaceChildren();
+  for (const [label, value] of rows) {
+    const wrapper = document.createElement("div");
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    description.title = value;
+    wrapper.append(term, description);
+    target.append(wrapper);
+  }
+}
+
+function renderCompareConfigs() {
+  if (!compare.a || !compare.b) return;
+  renderConfigList(byId("config-a"), compare.a);
+  renderConfigList(byId("config-b"), compare.b);
+}
+
+function quoteForConfig(kind, config, spot = state.spot) {
+  let result = null;
+  try {
+    result = quote(kind, spot, config.strike, config.rate, config.vol, config.expiry, config.dividend);
+    return result.price;
+  } finally {
+    if (result) result.free();
+  }
+}
+
+function rebuildCompareCurves() {
+  if (!wasmReady || !compare.a || !compare.b) return;
+
+  let aCurve = null;
+  let bCurve = null;
+  try {
+    aCurve = price_curve(
+      compare.kind,
+      CURVE_MIN_SPOT,
+      CURVE_MAX_SPOT,
+      CURVE_POINTS,
+      compare.a.strike,
+      compare.a.rate,
+      compare.a.vol,
+      compare.a.expiry,
+      compare.a.dividend,
+    );
+    bCurve = price_curve(
+      compare.kind,
+      CURVE_MIN_SPOT,
+      CURVE_MAX_SPOT,
+      CURVE_POINTS,
+      compare.b.strike,
+      compare.b.rate,
+      compare.b.vol,
+      compare.b.expiry,
+      compare.b.dividend,
+    );
+    compare.curves = {
+      spots: aCurve.spots,
+      a: aCurve.values,
+      b: bCurve.values,
+    };
+  } catch (error) {
+    showError(`Comparison failed: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  } finally {
+    if (aCurve) aCurve.free();
+    if (bCurve) bCurve.free();
+  }
+
+  updateCompareSummary();
+}
+
+function updateCompareSummary() {
+  if (!compare.open || !compare.curves || !compare.a || !compare.b) return;
+
+  try {
+    const liveA = quoteForConfig(compare.kind, compare.a);
+    const liveB = quoteForConfig(compare.kind, compare.b);
+    compare.liveA = liveA;
+    compare.liveB = liveB;
+
+    const difference = liveB - liveA;
+    let maxAbsGap = 0;
+    let maxGap = 0;
+    let maxGapSpot = CURVE_MIN_SPOT;
+    for (let index = 0; index < compare.curves.spots.length; index += 1) {
+      const gap = compare.curves.b[index] - compare.curves.a[index];
+      if (Math.abs(gap) > maxAbsGap) {
+        maxAbsGap = Math.abs(gap);
+        maxGap = gap;
+        maxGapSpot = compare.curves.spots[index];
+      }
+    }
+
+    const gapClass = maxGap >= 0 ? "diff-up" : "diff-down";
+    const gapText =
+      maxAbsGap < 1e-10
+        ? "Largest gap: none."
+        : `Largest gap: <b class="${gapClass}">${formatSigned(maxGap, 4)}</b> at spot <b>${maxGapSpot.toFixed(1)}</b>.`;
+    byId("compare-summary").innerHTML =
+      `At spot <b>${state.spot.toFixed(1)}</b>: A <b>${formatNumber(liveA, 4)}</b>, ` +
+      `B <b>${formatNumber(liveB, 4)}</b>. ` +
+      `<span class="${difference >= 0 ? "diff-up" : "diff-down"}">B − A = ${formatSigned(difference, 4)}</span>. ` +
+      gapText;
+
+    compareChart.setData({
+      spots: compare.curves.spots,
+      a: compare.curves.a,
+      b: compare.curves.b,
+      liveSpot: state.spot,
+      liveA,
+      liveB,
+      kind: compare.kind,
+    });
+  } catch (error) {
+    showError(`Comparison failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function setCompareOpen(open, focusToggle = false) {
+  if (open && !wasmReady) return;
+
+  compare.open = open;
+  byId("compare-panel").hidden = !open;
+  const toggle = byId("compare-toggle");
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.querySelector(".compare-launch-title").textContent = open
+    ? "Hide comparison"
+    : "Compare two setups";
+
+  if (open) {
+    initializeCompare();
+    rebuildCompareCurves();
+    compareChart.resize();
+    requestAnimationFrame(() => {
+      compareChart.draw();
+      byId("compare-panel").scrollIntoView({
+        behavior: REDUCED_MOTION ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+  } else if (focusToggle) {
+    toggle.focus();
+  }
+}
+
+function captureCompare(slot) {
+  if (!wasmReady) return;
+  compare[slot] = snapshotConfig();
+  renderCompareConfigs();
+  if (compare.open) rebuildCompareCurves();
+}
+
+function bindCompare() {
+  byId("compare-toggle").addEventListener("click", () => setCompareOpen(!compare.open));
+  byId("compare-close").addEventListener("click", () => setCompareOpen(false, true));
+  byId("capture-a").addEventListener("click", () => captureCompare("a"));
+  byId("capture-b").addEventListener("click", () => captureCompare("b"));
+
+  for (const button of document.querySelectorAll("[data-compare-kind]")) {
+    button.addEventListener("click", () => {
+      compare.kind = button.dataset.compareKind;
+      for (const peer of document.querySelectorAll("[data-compare-kind]")) {
+        const active = peer === button;
+        peer.classList.toggle("is-active", active);
+        peer.setAttribute("aria-pressed", String(active));
+      }
+      rebuildCompareCurves();
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && compare.open) {
+      event.preventDefault();
+      setCompareOpen(false, true);
+    }
+  });
+}
 function draw() {
   if (!lastResult) return;
   const started = performance.now();
@@ -752,7 +1174,9 @@ function bindRotationToggle() {
 
 async function boot() {
   syncControls();
+  initializeCompare();
   bindControls();
+  bindCompare();
   bindCanvas();
   bindRotationToggle();
   requestAnimationFrame(frame);
@@ -762,6 +1186,7 @@ async function boot() {
     await init();
     wasmReady = true;
     window.__wasmPricer.version = version();
+    byId("app-version").textContent = `v${window.__wasmPricer.version}`;
     document.querySelector(".brand").title = `wasm-pricer ${window.__wasmPricer.version}`;
 
     // One warm-up pass, then the pass whose numbers stay on screen.
@@ -788,6 +1213,15 @@ async function boot() {
 }
 
 boot();
+
+
+
+
+
+
+
+
+
 
 
 

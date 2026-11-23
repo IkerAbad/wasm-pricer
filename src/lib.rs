@@ -207,11 +207,12 @@ pub fn asian_monte_carlo(
     rate: f64,
     vol: f64,
     expiry: f64,
+    dividend_yield: f64,
     steps: usize,
     paths: usize,
     seed: u32,
 ) -> Result<AsianResult, JsValue> {
-    validate_market(spot, strike, rate, vol, expiry, 0.0)?;
+    validate_market(spot, strike, rate, vol, expiry, dividend_yield)?;
     if steps == 0 || steps > 512 {
         return Err(js_error("steps must be between 1 and 512"));
     }
@@ -219,7 +220,17 @@ pub fn asian_monte_carlo(
         return Err(js_error("paths must be between 2 and 2,000,000"));
     }
     Ok(AsianResult {
-        inner: monte_carlo::asian_estimate(spot, strike, rate, vol, expiry, steps, paths, seed),
+        inner: monte_carlo::asian_estimate(
+            spot,
+            strike,
+            rate,
+            vol,
+            expiry,
+            dividend_yield,
+            steps,
+            paths,
+            seed,
+        ),
     })
 }
 
@@ -271,20 +282,84 @@ pub fn build_vol_surface(
     rate: f64,
     vol: f64,
     expiry: f64,
+    dividend_yield: f64,
 ) -> Result<VolatilitySurface, JsValue> {
-    validate_market(spot, strike, rate, vol, expiry, 0.0)?;
+    validate_market(spot, strike, rate, vol, expiry, dividend_yield)?;
     let SurfaceData {
         strikes,
         maturities,
         values,
         marker_vol,
-    } = svi::build_surface(spot, strike, rate, vol, expiry);
+    } = svi::build_surface(spot, strike, rate, vol, expiry, dividend_yield);
     Ok(VolatilitySurface {
         strikes,
         maturities,
         values,
         marker_vol,
     })
+}
+
+#[wasm_bindgen]
+pub struct PriceCurve {
+    spots: Vec<f64>,
+    values: Vec<f64>,
+}
+
+#[wasm_bindgen]
+impl PriceCurve {
+    #[wasm_bindgen(getter)]
+    pub fn spots(&self) -> Vec<f64> {
+        self.spots.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn values(&self) -> Vec<f64> {
+        self.values.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn points(&self) -> usize {
+        self.values.len()
+    }
+}
+
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn price_curve(
+    kind: &str,
+    spot_min: f64,
+    spot_max: f64,
+    points: usize,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    expiry: f64,
+    dividend_yield: f64,
+) -> Result<PriceCurve, JsValue> {
+    if !(2..=1_000).contains(&points) {
+        return Err(js_error("points must be between 2 and 1,000"));
+    }
+    if !spot_max.is_finite() || spot_max <= spot_min {
+        return Err(js_error("spot_max must be greater than spot_min"));
+    }
+    validate_market(spot_min, strike, rate, vol, expiry, dividend_yield)?;
+    let option_kind = parse_kind(kind)?;
+    let values = black_scholes::price_curve(
+        option_kind,
+        spot_min,
+        spot_max,
+        points,
+        strike,
+        rate,
+        vol,
+        expiry,
+        dividend_yield,
+    );
+    let step = (spot_max - spot_min) / (points - 1) as f64;
+    let spots = (0..points)
+        .map(|index| spot_min + step * index as f64)
+        .collect();
+    Ok(PriceCurve { spots, values })
 }
 
 #[wasm_bindgen]

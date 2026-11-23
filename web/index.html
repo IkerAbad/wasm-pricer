@@ -96,6 +96,15 @@
 
             <div class="field">
               <div class="field-head">
+                <label for="dividend">Dividend yield</label>
+                <output id="dividend-value" for="dividend">0.0%</output>
+              </div>
+              <input id="dividend" type="range" min="0" max="10" step="0.1" value="0" />
+              <div class="range-ends"><span>0%</span><span>10%</span></div>
+            </div>
+
+            <div class="field">
+              <div class="field-head">
                 <label for="expiry">Expiry</label>
                 <output id="expiry-value" for="expiry">12 months (1.00 y)</output>
               </div>
@@ -104,10 +113,21 @@
             </div>
 
             <p class="control-note">
-              Continuous compounding, zero dividend yield, one currency unit per
-              share. The Asian option averages 64 equally spaced prices after
-              inception.
+              Continuous compounding and continuous dividend yield, one currency
+              unit per share. The Asian option averages 64 equally spaced prices
+              after inception.
             </p>
+
+            <button
+              class="compare-launch"
+              id="compare-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="compare-panel"
+            >
+              <span class="compare-launch-title">Compare two setups</span>
+              <span class="compare-launch-copy">Freeze A and B, then overlay their value curves.</span>
+            </button>
           </section>
 
           <section class="results" aria-label="Results">
@@ -139,6 +159,86 @@
                 <div><dt>Volga</dt><dd id="greek-volga">—</dd><span>∂²V/∂σ²</span></div>
                 <div><dt>Charm</dt><dd id="greek-charm">—</dd><span>−∂Δ/∂T</span></div>
               </dl>
+            </section>
+
+            <section class="panel greek-guide" aria-labelledby="guide-heading">
+              <div class="panel-head">
+                <h2 id="guide-heading">What the Greeks mean</h2>
+                <span class="pill">plain English</span>
+              </div>
+              <p class="guide-intro">
+                A call is the right to buy at the strike, the agreed price, and a
+                put is the right to sell at that price. Both are European, so they
+                can only be exercised at expiry. A positive Greek means the option
+                value rises when that market input rises. A negative one means it
+                falls.
+              </p>
+              <div class="guide-grid">
+                <article>
+                  <h3>Delta</h3>
+                  <p>
+                    How much the option value changes when the stock rises by
+                    1.00. Calls have positive delta and gain when the stock rises,
+                    while puts have negative delta and gain when it falls.
+                  </p>
+                </article>
+                <article>
+                  <h3>Gamma</h3>
+                  <p>
+                    How much delta changes when the stock rises by 1.00. It is
+                    positive when you own a call or put, so the position becomes
+                    more sensitive to the stock as it moves away from the strike.
+                  </p>
+                </article>
+                <article>
+                  <h3>Vega</h3>
+                  <p>
+                    Vega measures how sensitive the option value is to volatility,
+                    the size of the stock's swings. It is positive when you own a
+                    call or put, so more volatility makes the option more valuable.
+                  </p>
+                </article>
+                <article>
+                  <h3>Theta</h3>
+                  <p>
+                    How much value the option loses as one year of calendar time
+                    passes. It is usually negative when you own an option, because
+                    time value shrinks as expiry approaches.
+                  </p>
+                </article>
+                <article>
+                  <h3>Rho</h3>
+                  <p>
+                    Rho measures how sensitive the option value is to interest
+                    rates. Calls usually have positive rho and puts usually have
+                    negative rho, so higher rates help calls and hurt puts.
+                  </p>
+                </article>
+                <article>
+                  <h3>Vanna</h3>
+                  <p>
+                    How much delta changes when volatility rises. The sign tells
+                    you whether the option becomes more or less sensitive to the
+                    stock as volatility changes.
+                  </p>
+                </article>
+                <article>
+                  <h3>Volga</h3>
+                  <p>
+                    How much vega changes when volatility rises. It is usually
+                    positive when you own an option, so its sensitivity to
+                    volatility grows as volatility grows.
+                  </p>
+                </article>
+                <article>
+                  <h3>Charm</h3>
+                  <p>
+                    How much delta changes as one year of calendar time passes.
+                    The sign tells you whether the option becomes more or less
+                    sensitive to the stock as expiry gets closer.
+                  </p>
+                </article>
+              </div>
             </section>
 
             <section class="panel mc" aria-labelledby="mc-heading">
@@ -191,6 +291,92 @@
           </section>
         </div>
 
+        <section
+          class="panel compare-panel"
+          id="compare-panel"
+          aria-labelledby="compare-heading"
+          hidden
+        >
+          <div class="compare-head">
+            <div>
+              <h2 id="compare-heading">Compare two setups</h2>
+              <p class="muted compare-copy">
+                A and B are frozen snapshots. The curves reprice the same option
+                across spot while every other input stays fixed. Initially B is
+                ten volatility points above A, and Use current replaces either
+                setup.
+              </p>
+            </div>
+            <div class="compare-actions">
+              <div class="kind-toggle" role="group" aria-label="Option type for comparison">
+                <button
+                  class="kind-button is-active"
+                  type="button"
+                  data-compare-kind="call"
+                  aria-pressed="true"
+                >
+                  Call
+                </button>
+                <button
+                  class="kind-button"
+                  type="button"
+                  data-compare-kind="put"
+                  aria-pressed="false"
+                >
+                  Put
+                </button>
+              </div>
+              <button class="ghost-button" type="button" id="compare-close">Hide</button>
+            </div>
+          </div>
+
+          <div class="compare-config-grid">
+            <article class="config-card config-a">
+              <div class="config-head">
+                <span class="config-swatch"></span>
+                <h3>Setup A</h3>
+                <button
+                  class="ghost-button"
+                  type="button"
+                  id="capture-a"
+                  aria-label="Set setup A from the current sliders"
+                >
+                  Use current
+                </button>
+              </div>
+              <dl class="config-list" id="config-a"></dl>
+            </article>
+            <article class="config-card config-b">
+              <div class="config-head">
+                <span class="config-swatch"></span>
+                <h3>Setup B</h3>
+                <button
+                  class="ghost-button"
+                  type="button"
+                  id="capture-b"
+                  aria-label="Set setup B from the current sliders"
+                >
+                  Use current
+                </button>
+              </div>
+              <dl class="config-list" id="config-b"></dl>
+            </article>
+          </div>
+
+          <div class="curve-wrap">
+            <canvas
+              id="compare-chart"
+              role="img"
+              aria-label="Option value for setups A and B across spot."
+            ></canvas>
+            <div class="curve-legend" aria-hidden="true">
+              <span><i class="swatch-a"></i>A</span>
+              <span><i class="swatch-b"></i>B</span>
+            </div>
+          </div>
+          <p class="compare-summary" id="compare-summary" aria-live="polite">—</p>
+        </section>
+
         <section class="panel surface-panel" aria-labelledby="surface-heading">
           <div class="surface-head">
             <div>
@@ -232,9 +418,10 @@
         </section>
 
         <footer>
-          <span>MIT License · Iker Abad</span>
+          <span>MIT License · Iker Abad · <span id="app-version">v0.1.0</span></span>
           <span class="footer-links">
             <a href="https://github.com/IkerAbad/wasm-pricer">Source</a>
+            <a href="https://github.com/IkerAbad/wasm-pricer/blob/main/docs/performance.md">Performance log</a>
             <a href="https://github.com/IkerAbad/options-pricer">Reference implementation</a>
           </span>
         </footer>
@@ -244,3 +431,7 @@
     </div>
   </body>
 </html>
+
+
+
+

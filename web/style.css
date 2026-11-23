@@ -12,6 +12,7 @@
   --accent: #5eead4;
   --accent-soft: rgba(94, 234, 212, 0.12);
   --accent-2: #7db4ff;
+  --compare-b: #ffbd6b;
   --warn: #ff8f6b;
   --good: #8ee6b0;
   --mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -210,7 +211,8 @@ a {
 }
 
 .panel-head h2,
-.surface-head h2 {
+.surface-head h2,
+.compare-head h2 {
   margin: 0;
   font-size: 0.76rem;
   font-weight: 600;
@@ -381,6 +383,48 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   line-height: 1.55;
 }
 
+.compare-launch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px 14px;
+  border: 1px solid rgba(94, 234, 212, 0.26);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(94, 234, 212, 0.1), rgba(94, 234, 212, 0.02));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.compare-launch:hover {
+  border-color: rgba(94, 234, 212, 0.55);
+  background: linear-gradient(135deg, rgba(94, 234, 212, 0.16), rgba(94, 234, 212, 0.04));
+}
+
+.compare-launch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.compare-launch-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.compare-launch-copy {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
 .results {
   display: grid;
   gap: 18px;
@@ -480,6 +524,254 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   font-family: var(--mono);
   font-size: 0.58rem;
   white-space: nowrap;
+}
+
+.greek-guide {
+  padding: 17px 20px 20px;
+}
+
+.guide-intro {
+  max-width: 760px;
+  margin: 8px 0 14px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.guide-grid article {
+  padding: 12px 14px;
+  background: var(--panel-2);
+}
+
+.guide-grid h3 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guide-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.compare-panel {
+  margin-top: 18px;
+  padding: 18px 20px 20px;
+}
+
+.compare-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.compare-head h2 {
+  margin: 0 0 5px;
+}
+
+.compare-copy {
+  max-width: 680px;
+}
+
+.compare-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kind-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.kind-button {
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+
+.kind-button.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.kind-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.compare-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.config-card {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.config-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.config-head h3 {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.config-head .ghost-button {
+  margin-left: auto;
+}
+
+.config-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.config-b .config-swatch {
+  background: var(--compare-b);
+}
+
+.config-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.config-list > div {
+  min-width: 0;
+}
+
+.config-list dt {
+  color: var(--faint);
+  font-size: 0.56rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.config-list dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.curve-wrap {
+  position: relative;
+  height: clamp(240px, 32vh, 320px);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #090e14;
+}
+
+#compare-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.curve-legend {
+  position: absolute;
+  top: 11px;
+  right: 13px;
+  display: flex;
+  gap: 14px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  pointer-events: none;
+}
+
+.curve-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.swatch-a,
+.swatch-b {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.swatch-b {
+  background: var(--compare-b);
+}
+
+.compare-summary {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.73rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-summary b {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.compare-summary .diff-up {
+  color: var(--accent);
+}
+
+.compare-summary .diff-down {
+  color: var(--compare-b);
+}
+
+#app-version {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.62rem;
 }
 
 .mc {
@@ -779,7 +1071,8 @@ footer a:hover {
   }
 
   .controls .panel-head,
-  .controls .control-note {
+  .controls .control-note,
+  .controls .compare-launch {
     grid-column: 1 / -1;
   }
 
@@ -793,6 +1086,27 @@ footer a:hover {
 }
 
 @media (max-width: 720px) {
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .curve-wrap {
+    height: 260px;
+  }
+
+  .config-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .page {
     padding-top: 14px;
   }
@@ -844,6 +1158,7 @@ footer a:hover {
     width: 100%;
     justify-content: space-between;
   }
+
 
   .stat {
     align-items: flex-start;
@@ -898,6 +1213,8 @@ footer a:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+
 
 
 

@@ -164,3 +164,26 @@ pub fn quote(
         charm,
     }
 }
+
+/// European option value for a grid of spot prices, holding every other input
+/// fixed. Used by the comparison chart.
+#[allow(clippy::too_many_arguments)]
+pub fn price_curve(
+    kind: OptionKind,
+    spot_min: f64,
+    spot_max: f64,
+    points: usize,
+    strike: f64,
+    rate: f64,
+    vol: f64,
+    expiry: f64,
+    dividend_yield: f64,
+) -> Vec<f64> {
+    let step = (spot_max - spot_min) / (points - 1) as f64;
+    (0..points)
+        .map(|index| {
+            let spot = spot_min + step * index as f64;
+            price(kind, spot, strike, rate, vol, expiry, dividend_yield)
+        })
+        .collect()
+}

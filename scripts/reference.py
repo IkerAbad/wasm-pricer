@@ -64,6 +64,9 @@ def main() -> None:
         steps=STEPS, paths=REFERENCE_PATHS, seed=REFERENCE_SEED, antithetic=False,
     )
 
+    dividend_yield = 0.03
+    dividend_greeks = black_scholes.greeks("call", SPOT, STRIKE, RATE, VOL, EXPIRY, dividend_yield)
+
     payload = {
         "source": f"options-pricer {getattr(options_pricer, '__version__', 'unknown')}",
         "command": "OPTIONS_PRICER_SRC=../options-pricer/src python scripts/reference.py",
@@ -87,6 +90,12 @@ def main() -> None:
                 "volga": greeks.volga,
                 "charm": greeks.charm,
             },
+        },
+        "dividend_case": {
+            "dividend_yield": dividend_yield,
+            "call": black_scholes.call_price(SPOT, STRIKE, RATE, VOL, EXPIRY, dividend_yield),
+            "put": black_scholes.put_price(SPOT, STRIKE, RATE, VOL, EXPIRY, dividend_yield),
+            "delta": dividend_greeks.delta,
         },
         "monte_carlo": {
             "steps": STEPS,
@@ -120,3 +129,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
