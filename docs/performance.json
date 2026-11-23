@@ -1,0 +1,84 @@
+{
+  "measured_at": "2026-11-23",
+  "url": "https://ikerabad.github.io/wasm-pricer/",
+  "app_version": "0.1.0",
+  "measured_commit": "79e79f71923abfa117a12eff30ea486fe6dbc9d9",
+  "asset_sha256": {
+    "index.html": "9e50083c50d2c5e895b3e506399b2f58ada81da2715c67a974cf380d1b6a23ef",
+    "app.js": "90df194e5bb4e27c25d1cfb8979d292f4292153a967e79951b57480e31a2d380",
+    "style.css": "c9f0e07b468608c92626dbf094c2e1d9100458b7893ebbe42f828ddde9775eec",
+    "pkg/wasm_pricer_bg.wasm": "cd037c3e62470495fc50a017d78a06f04b242cb03d68d5d7578a186d18b9de09"
+  },
+  "machine": {
+    "cpu": "AMD Ryzen 9 5900X 12-Core Processor",
+    "memory_gb": 32,
+    "os": "Windows 11 build 10.0.26300",
+    "viewport": "1000x700"
+  },
+  "network": "Unthrottled GitHub Pages CDN from the author's connection",
+  "method": {
+    "load": "performance.now() from navigation start to the first rendered surface. Edge and Firefox used three fresh Playwright contexts; Chrome used a new desktop tab followed by two cache-disabled reloads.",
+    "recalc": "window.__wasmPricer.benchmark(30): three warm-ups, then 30 synchronous runs of two European quotes, the 3,000-path / 64-step Asian Monte Carlo and the 49x20 SVI surface.",
+    "motion": "prefers-reduced-motion: reduce, so the 3D auto-rotation is off during timing.",
+    "edge_firefox": "Playwright headless browsers.",
+    "chrome": "Chrome 152 desktop."
+  },
+  "browsers": [
+    {
+      "name": "Chrome",
+      "version": "152.0.7977.167",
+      "engine": "Blink",
+      "mode": "desktop browser",
+      "runs": [
+        { "load_ms": 500.9, "calc_median_ms": 6.7, "calc_p95_ms": 6.9 },
+        { "load_ms": 76.6, "calc_median_ms": 6.8, "calc_p95_ms": 7.9 },
+        { "load_ms": 75.5, "calc_median_ms": 6.7, "calc_p95_ms": 7.3 }
+      ],
+      "summary": {
+        "first_load_ms": 500.9,
+        "load_median_ms": 76.6,
+        "calc_median_ms": 6.7,
+        "calc_p95_worst_ms": 7.9
+      }
+    },
+    {
+      "name": "Microsoft Edge",
+      "version": "136.0.3240.64",
+      "engine": "Blink",
+      "mode": "Playwright headless",
+      "runs": [
+        { "load_ms": 515.6, "calc_median_ms": 6.5, "calc_p95_ms": 6.9 },
+        { "load_ms": 224.3, "calc_median_ms": 6.3, "calc_p95_ms": 6.8 },
+        { "load_ms": 188.8, "calc_median_ms": 6.2, "calc_p95_ms": 6.3 }
+      ],
+      "summary": {
+        "first_load_ms": 515.6,
+        "load_median_ms": 224.3,
+        "calc_median_ms": 6.3,
+        "calc_p95_worst_ms": 6.9
+      }
+    },
+    {
+      "name": "Firefox",
+      "version": "159.0",
+      "engine": "Gecko",
+      "mode": "Playwright headless",
+      "runs": [
+        { "load_ms": 402.0, "calc_median_ms": 9.0, "calc_p95_ms": 10.0 },
+        { "load_ms": 180.0, "calc_median_ms": 8.0, "calc_p95_ms": 9.0 },
+        { "load_ms": 218.0, "calc_median_ms": 8.0, "calc_p95_ms": 9.0 }
+      ],
+      "summary": {
+        "first_load_ms": 402.0,
+        "load_median_ms": 218.0,
+        "calc_median_ms": 8.0,
+        "calc_p95_worst_ms": 10.0
+      }
+    }
+  ],
+  "limits": {
+    "load_ms": 1000,
+    "recalc_ms": 16
+  },
+  "all_within_limits": true
+}
