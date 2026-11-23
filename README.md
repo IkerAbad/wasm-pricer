@@ -214,14 +214,15 @@ viewport) the page reports roughly:
 
 | Measurement | Observed |
 |---|---:|
-| Load, warm cache | 50–200 ms |
-| Load, cache disabled | about 600 ms |
+| Load, local warm cache | 50–200 ms |
+| Load, published site, cache disabled | 440–600 ms |
 | Recalculation, median | 7–12 ms |
-| Canvas draw | 6–9 ms |
+| Canvas draw | 6–11 ms |
 
-The budget is met on the calculation path. A slider movement also triggers a
-canvas redraw, so a single changed frame can approach 16 ms on this machine.
-The measurement chips expose both numbers rather than hiding the split.
+The release WASM binary is about 33 KB. The budget is met on the calculation
+path. A slider movement also triggers a canvas redraw, so a single changed
+frame can approach 16 ms on this machine. The measurement chips expose both
+numbers rather than hiding the split.
 
 ## Run it locally
 
@@ -274,6 +275,7 @@ repository's Pages source must be set to **GitHub Actions**.
 ## License
 
 MIT. Copyright (c) 2026 Iker Abad.
+
 
 
 
