@@ -1,0 +1,48 @@
+{
+  "source": "options-pricer 0.8.0",
+  "command": "OPTIONS_PRICER_SRC=../options-pricer/src python scripts/reference.py",
+  "market": {
+    "spot": 100.0,
+    "strike": 100.0,
+    "rate": 0.05,
+    "vol": 0.2,
+    "expiry": 1.0
+  },
+  "black_scholes": {
+    "call": 10.450583572185565,
+    "put": 5.573526022256971,
+    "greeks": {
+      "delta": 0.6368306511756191,
+      "gamma": 0.018762017345846895,
+      "vega": 37.52403469169379,
+      "theta": -6.414027546438197,
+      "rho": 53.232481545376345,
+      "vanna": -0.28143026018770345,
+      "volga": 9.850059106569622,
+      "charm": -0.06566706071046413
+    }
+  },
+  "monte_carlo": {
+    "steps": 64,
+    "reference_paths": 2000000,
+    "reference_seed": 42,
+    "european_call": {
+      "price": 10.455584088459515,
+      "standard_error": 0.010413624062323492
+    },
+    "asian_call": {
+      "price": 5.839498280542845,
+      "standard_error": 0.005712779709158374
+    },
+    "asian_put": {
+      "price": 3.3799822871520018,
+      "standard_error": 0.0037547030139480474
+    },
+    "geometric_asian_call": 5.620434431825337,
+    "geometric_asian_put": 3.4988899294316855
+  },
+  "tolerances": {
+    "closed_form_absolute": 1e-09,
+    "monte_carlo": "four combined standard errors for raw estimates; 0.01 absolute for the control-variate estimate"
+  }
+}
