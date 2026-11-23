@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>wasm-pricer — Black-Scholes at frame rate</title>
+    <meta
+      name="description"
+      content="European option prices and Greeks, an Asian Monte Carlo and a raw SVI volatility surface, computed in Rust and WebAssembly."
+    />
+    <meta name="theme-color" content="#0b0f14" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0f14'/%3E%3Ctext x='32' y='45' font-family='Georgia,serif' font-size='40' fill='%235eead4' text-anchor='middle'%3E%CE%A3%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="wasm-pricer home">
+          <span class="brand-mark">Σ</span>
+          <span class="brand-name">wasm-pricer</span>
+          <span class="brand-sub">Rust → WebAssembly</span>
+        </a>
+        <div class="perf" aria-label="Performance measurements">
+          <span class="perf-item" id="load-item">load <b id="load-time">—</b></span>
+          <span class="perf-item" id="calc-item">calc <b id="calc-time">—</b></span>
+          <span class="perf-item" id="draw-item">draw <b id="draw-time">—</b></span>
+          <span class="perf-note">calc budget 16 ms</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <h1>Option pricing that keeps up with the slider.</h1>
+          <p>
+            Black-Scholes, eight Greeks, an Asian Monte Carlo and a raw SVI
+            surface. The maths runs in Rust, compiled to WebAssembly. The chart
+            is a plain canvas.
+          </p>
+        </section>
+
+        <div class="layout">
+          <section class="panel controls" aria-labelledby="market-heading">
+            <div class="panel-head">
+              <h2 id="market-heading">Market</h2>
+              <button class="ghost-button" type="button" id="reset-button">Reset</button>
+            </div>
+
+            <div class="field">
+              <div class="field-head">
+                <label for="spot">Spot</label>
+                <output id="spot-value" for="spot">100.0</output>
+              </div>
+              <input id="spot" type="range" min="50" max="150" step="0.5" value="100" />
+              <div class="range-ends"><span>50</span><span>150</span></div>
+            </div>
+
+            <div class="field">
+              <div class="field-head">
+                <label for="strike">Strike</label>
+                <output id="strike-value" for="strike">100.0</output>
+              </div>
+              <input id="strike" type="range" min="50" max="150" step="0.5" value="100" />
+              <div class="range-ends"><span>50</span><span>150</span></div>
+            </div>
+
+            <div class="field">
+              <div class="field-head">
+                <label for="vol">Volatility</label>
+                <output id="vol-value" for="vol">20.0%</output>
+              </div>
+              <input id="vol" type="range" min="5" max="80" step="0.5" value="20" />
+              <div class="range-ends"><span>5%</span><span>80%</span></div>
+            </div>
+
+            <div class="field">
+              <div class="field-head">
+                <label for="rate">Interest rate</label>
+                <output id="rate-value" for="rate">5.0%</output>
+              </div>
+              <input id="rate" type="range" min="0" max="10" step="0.1" value="5" />
+              <div class="range-ends"><span>0%</span><span>10%</span></div>
+            </div>
+
+            <div class="field">
+              <div class="field-head">
+                <label for="expiry">Expiry</label>
+                <output id="expiry-value" for="expiry">12 months (1.00 y)</output>
+              </div>
+              <input id="expiry" type="range" min="1" max="24" step="1" value="12" />
+              <div class="range-ends"><span>1 month</span><span>2 years</span></div>
+            </div>
+
+            <p class="control-note">
+              Continuous compounding, zero dividend yield, one currency unit per
+              share. The Asian option averages 64 equally spaced prices after
+              inception.
+            </p>
+          </section>
+
+          <section class="results" aria-label="Results">
+            <div class="price-grid">
+              <article class="panel price-card">
+                <div class="card-label">Call value</div>
+                <div class="price" id="call-price">—</div>
+                <div class="price-meta"><span>European</span><span>Black-Scholes</span></div>
+              </article>
+              <article class="panel price-card">
+                <div class="card-label">Put value</div>
+                <div class="price" id="put-price">—</div>
+                <div class="price-meta"><span>European</span><span>Black-Scholes</span></div>
+              </article>
+            </div>
+
+            <section class="panel greeks" aria-labelledby="greeks-heading">
+              <div class="panel-head">
+                <h2 id="greeks-heading">Greeks</h2>
+                <span class="pill">call</span>
+              </div>
+              <dl class="greek-grid">
+                <div><dt>Delta</dt><dd id="greek-delta">—</dd><span>∂V/∂S</span></div>
+                <div><dt>Gamma</dt><dd id="greek-gamma">—</dd><span>∂²V/∂S²</span></div>
+                <div><dt>Vega</dt><dd id="greek-vega">—</dd><span>∂V/∂σ</span></div>
+                <div><dt>Theta</dt><dd id="greek-theta">—</dd><span>∂V/∂t per year</span></div>
+                <div><dt>Rho</dt><dd id="greek-rho">—</dd><span>∂V/∂r</span></div>
+                <div><dt>Vanna</dt><dd id="greek-vanna">—</dd><span>∂²V/∂S∂σ</span></div>
+                <div><dt>Volga</dt><dd id="greek-volga">—</dd><span>∂²V/∂σ²</span></div>
+                <div><dt>Charm</dt><dd id="greek-charm">—</dd><span>−∂Δ/∂T</span></div>
+              </dl>
+            </section>
+
+            <section class="panel mc" aria-labelledby="mc-heading">
+              <div class="panel-head">
+                <h2 id="mc-heading">Closed form vs Monte Carlo</h2>
+                <span class="pill" id="mc-sample">—</span>
+              </div>
+              <table class="mc-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Estimator</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Std. error</th>
+                    <th scope="col">Check</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">European call · closed form</th>
+                    <td id="mc-closed">—</td>
+                    <td>—</td>
+                    <td>Black-Scholes</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">European call · Monte Carlo</th>
+                    <td id="mc-european">—</td>
+                    <td id="mc-european-se">—</td>
+                    <td id="mc-european-z">—</td>
+                  </tr>
+                  <tr class="separator">
+                    <th scope="row">Asian call · Monte Carlo, control variate</th>
+                    <td id="mc-asian">—</td>
+                    <td id="mc-asian-se">—</td>
+                    <td id="mc-asian-raw">—</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Asian call · geometric closed form</th>
+                    <td id="mc-geometric">—</td>
+                    <td>—</td>
+                    <td>control price</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="note">
+                The control variate uses the exact geometric-average price. The
+                arithmetic average is worth slightly more, so the last two rows
+                are different contracts, not an error.
+              </p>
+            </section>
+          </section>
+        </div>
+
+        <section class="panel surface-panel" aria-labelledby="surface-heading">
+          <div class="surface-head">
+            <div>
+              <h2 id="surface-heading">Implied volatility surface</h2>
+              <p class="muted">
+                Raw SVI slices pinned to the ATM volatility. Strike runs along
+                the front axis, maturity along the side; height and colour are
+                implied volatility. Synthetic, not live market data.
+              </p>
+            </div>
+            <div class="surface-stats">
+              <div class="stat">
+                <span>σ at option</span>
+                <b id="marker-vol">—</b>
+              </div>
+              <button class="ghost-button" type="button" id="rotate-toggle" aria-pressed="true">
+                Pause rotation
+              </button>
+            </div>
+          </div>
+
+          <div class="canvas-wrap">
+            <canvas
+              id="surface"
+              tabindex="0"
+              aria-label="3D implied volatility surface. Drag to rotate, scroll to zoom, arrow keys also rotate."
+            ></canvas>
+            <div class="canvas-loading" id="canvas-loading">loading pricing core…</div>
+            <div class="canvas-hint">drag to rotate · scroll to zoom · double click resets</div>
+            <div class="legend" id="legend" hidden>
+              <span class="legend-title">implied vol</span>
+              <div class="legend-bar"></div>
+              <div class="legend-labels"><span id="legend-min">—</span><span id="legend-max">—</span></div>
+            </div>
+          </div>
+        </section>
+
+        <footer>
+          <span>MIT License · Iker Abad</span>
+          <span class="footer-links">
+            <a href="https://github.com/IkerAbad/wasm-pricer">Source</a>
+            <a href="https://github.com/IkerAbad/options-pricer">Reference implementation</a>
+          </span>
+        </footer>
+      </main>
+
+      <div class="error-banner" id="error-banner" role="alert" hidden></div>
+    </div>
+  </body>
+</html>

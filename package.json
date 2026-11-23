@@ -1,0 +1,15 @@
+{
+  "name": "wasm-pricer-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static page and reference tests for the wasm-pricer WebAssembly demo.",
+  "author": "Iker Abad",
+  "license": "MIT",
+  "scripts": {
+    "build": "wasm-pack build --target web --release --out-dir web/pkg",
+    "build:node": "wasm-pack build --target nodejs --release --out-dir pkg-node",
+    "test": "node --test tests/node/reference.test.mjs",
+    "serve": "python -m http.server 8000 -d web"
+  }
+}
