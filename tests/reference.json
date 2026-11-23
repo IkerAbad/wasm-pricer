@@ -1,5 +1,5 @@
 {
-  "source": "options-pricer 0.8.0",
+  "source": "options-pricer 1.1.0",
   "command": "OPTIONS_PRICER_SRC=../options-pricer/src python scripts/reference.py",
   "market": {
     "spot": 100.0,
