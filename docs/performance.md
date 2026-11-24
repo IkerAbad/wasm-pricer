@@ -45,8 +45,8 @@ reported figure excludes DOM updates and canvas drawing.
 - Edge and Firefox were launched by Playwright in headless mode. Each of the
   three runs used a fresh browser context, so no HTTP cache or page state was
   carried over. Version strings come from the browser binaries.
-- Chrome was measured in a desktop browser. The first run opened a
-  new tab. The next two runs used cache-disabled reloads.
+- Chrome was measured in a desktop browser. The first run opened a new tab. The
+  next two runs used cache-disabled reloads.
 - All runs loaded the public GitHub Pages URL, not a local server.
 - The page was fully ready (`window.__wasmPricer.ready === true`) before the
   benchmark started.
